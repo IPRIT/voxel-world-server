@@ -23,6 +23,35 @@ export function normalizePort(value) {
 }
 
 /**
+ * @param {*} request
+ * @return {*}
+ */
+export function extractAllParams (request) {
+  return Object.assign(
+    {}, request.body, request.query, request.params, { user: request.user }
+  );
+}
+
+/**
+ * @param {Function} asyncMethodFn
+ * @param {*} req
+ * @param {*} res
+ * @param {Function} next
+ * @return {Promise<T>|*}
+ */
+export function wrapRequest (asyncMethodFn, req, res, next) {
+  const promiseLike = asyncMethodFn( extractAllParams( req ) );
+  if (!promiseLike.then) {
+    return promiseLike;
+  }
+  return promiseLike.then(response => {
+    return res.json({
+      response
+    });
+  }).catch( next );
+}
+
+/**
  * @param {number} bufferLength
  * @return {Promise<string>}
  */
@@ -31,4 +60,13 @@ export function generateCryptoToken (bufferLength = 48) {
   return getRandomBytes( bufferLength ).then(buffer => {
     return buffer.toString( 'hex' );
   });
+}
+
+/**
+ * @param {Socket} socket
+ * @return {Object}
+ */
+export function extractSocketQuery (socket) {
+  const { handshake = {} } = socket;
+  return handshake.query || {};
 }

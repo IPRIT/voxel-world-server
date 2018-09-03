@@ -1,10 +1,20 @@
 import express from 'express';
 import morgan from 'morgan';
+import {
+  router as apiRouter,
+  clientError,
+  serverError
+} from "./api";
 
-let app = express();
+const app = express();
 
 app.use( morgan('tiny') );
 app.enable( 'trust proxy' );
+
+app.use( '/api', apiRouter );
+
+app.use( clientError );
+app.use( serverError );
 
 // catch 404 and forward to error handler
 app.use((req, res, next) => {
