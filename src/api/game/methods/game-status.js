@@ -1,6 +1,5 @@
 import { wrapRequest } from "../../../utils";
-
-const status = [ 'free', 'waiting-for-players', 'preparing', 'in-game' ][ Math.floor(Math.random() * 4) ];
+import { GameStatus } from "../../../game";
 
 /**
  * @param {*} req
@@ -17,11 +16,6 @@ export function getGameStatusRequest (req, res, next) {
  * @return {Promise<Object>}
  */
 export async function getGameStatus (params) {
-  return {
-    // enum( 'free', 'waiting-for-players', 'preparing', 'in-game', 'unavailable' )
-    status,
-    playersNumber: 10,
-    maxPlayersNumber: 20,
-    gameStartedAt: Date.now()
-  };
+  const gameStatus = GameStatus.getInstance();
+  return gameStatus.getActualStatus();
 }

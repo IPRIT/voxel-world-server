@@ -15,5 +15,8 @@ export const config = {
   "serverApi": {
     "protocol": "http",
     "host": "localhost:9000"
+  },
+  "game": {
+    "maxPlayersNumber": 10
   }
 };
