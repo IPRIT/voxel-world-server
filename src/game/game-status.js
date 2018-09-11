@@ -215,6 +215,28 @@ export class GameStatus extends EventEmitter {
   /**
    * @return {boolean}
    */
+  get isAvailableToConnect () {
+    const statuses = GameStatus.Statuses;
+    return [ statuses.WAITING_FOR_PLAYERS, statuses.PREPARING ].includes( this._status );
+  }
+
+  /**
+   * @return {boolean}
+   */
+  get isFree () {
+    return this._status === GameStatus.Statuses.FREE;
+  }
+
+  /**
+   * @return {boolean}
+   */
+  get isFinished () {
+    return this._status === GameStatus.Statuses.FINISHED;
+  }
+
+  /**
+   * @return {boolean}
+   */
   get isWaitingForPlayers () {
     return this._status === GameStatus.Statuses.WAITING_FOR_PLAYERS;
   }
