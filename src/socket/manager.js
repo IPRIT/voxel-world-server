@@ -48,5 +48,8 @@ export class SocketManager {
    */
   _onConnection (socket) {
     console.log( '[Socket#connection]', socket.id, 'joined the server.' );
+    setInterval(_ => {
+      socket.emit( 'test', {a: 'test data'}, 'etst' );
+    }, 500);
   }
 }
