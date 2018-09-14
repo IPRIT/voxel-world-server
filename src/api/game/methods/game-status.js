@@ -18,5 +18,5 @@ export function getGameStatusRequest (req, res, next) {
  */
 export async function getGameStatus (params) {
   const gameStatus = GameStatus.getInstance();
-  return Promise.delay(Math.random() * 5000).then(_ => gameStatus.getActualStatus());
+  return gameStatus.getActualStatus();
 }
