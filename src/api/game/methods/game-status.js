@@ -1,5 +1,6 @@
 import { wrapRequest } from "../../../utils";
 import { GameStatus } from "../../../game";
+import Promise from 'bluebird';
 
 /**
  * @param {*} req
@@ -17,5 +18,5 @@ export function getGameStatusRequest (req, res, next) {
  */
 export async function getGameStatus (params) {
   const gameStatus = GameStatus.getInstance();
-  return gameStatus.getActualStatus();
+  return Promise.delay(Math.random() * 5000).then(_ => gameStatus.getActualStatus());
 }
