@@ -6,7 +6,7 @@ import http from 'http';
 
 import { config } from "../config";
 import { normalizePort } from "./utils/server-utils";
-import { SocketManager } from "./socket";
+import { SocketManager } from "./game/network";
 
 /**
  * Get port from config and set in Express.

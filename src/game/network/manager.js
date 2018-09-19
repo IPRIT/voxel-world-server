@@ -1,6 +1,8 @@
 import Socket from 'socket.io';
-import { config } from "../../config";
-import { connectionVerifier } from "./utils";
+import { config } from "../../../config";
+import { connectionVerifier } from "./utils/index";
+import { CharactersMap, CharactersMapReverted } from "../dictionary/characters";
+import { revertObject } from "../../utils/game-utils";
 
 export class SocketManager {
 
@@ -49,7 +51,7 @@ export class SocketManager {
   _onConnection (socket) {
     console.log( '[Socket#connection]', socket.id, 'joined the server.' );
     setInterval(_ => {
-      socket.emit( 'test', {a: 'test data'}, 'etst' );
+      socket.emit( 'test', { a: CharactersMap, b: revertObject( CharactersMap ) }, 'etst' );
     }, 500);
   }
 }

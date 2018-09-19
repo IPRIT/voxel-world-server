@@ -1,5 +1,5 @@
-import { fetchGameSession } from "../../methods";
-import { GameStatus } from "../../game";
+import { fetchGameSession } from "../../../methods/index";
+import { GameStatus } from "../../index";
 
 const defaultErrorCode = 'invalid_game_session';
 
