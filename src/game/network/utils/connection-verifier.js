@@ -1,13 +1,15 @@
 import { fetchGameSession } from "../../../methods/index";
 import { GameStatus } from "../../index";
+import { proxySocket } from "../../../utils";
 
 const defaultErrorCode = 'invalid_game_session';
 
 /**
- * @param {*} request
+ * @param {Socket} socket
  * @param {Function} next
  */
-export function connectionVerifier ({ handshake = {} }, next) {
+export function connectionVerifier (socket, next) {
+  const { handshake } = socket;
   const { query = {} } = handshake;
   const { sessionToken } = query;
 
@@ -17,6 +19,10 @@ export function connectionVerifier ({ handshake = {} }, next) {
 
   return verifyToken( sessionToken ).then(session => {
     return verifyInstance( session );
+  }).then(session => {
+    socket = proxySocket( socket );
+    socket.userSession = session;
+    return session;
   }).then(_ => next()).catch( next );
 }
 

@@ -70,3 +70,48 @@ export function extractSocketQuery (socket) {
   const { handshake = {} } = socket;
   return handshake.query || {};
 }
+
+/**
+ * @param {Object} socket
+ * @returns {*}
+ */
+export function proxySocket (socket) {
+  const storeProp = '$_map';
+
+  const proxyHandler = {
+    get (target, prop, receiver) {
+      if (Reflect.has( target, prop )) {
+        return Reflect.get( target, prop, receiver );
+      }
+
+      if (!Reflect.has( target, storeProp )) {
+        Reflect.set( target, storeProp, new Map(), receiver );
+      }
+
+      /**
+       * @type {Map}
+       */
+      const store = Reflect.get( target, storeProp, receiver );
+      return store.get( prop );
+    },
+
+    set (target, prop, value, receiver) {
+      if (Reflect.has( target, prop )) {
+        Reflect.set( target, prop, value, receiver );
+      } else {
+        if (!Reflect.has( target, storeProp )) {
+          Reflect.set( target, storeProp, new Map(), receiver );
+        }
+        /**
+         * @type {Map}
+         */
+        const store = Reflect.get( target, storeProp, receiver );
+        store.set( prop, value );
+      }
+
+      return value;
+    }
+  };
+
+  return new Proxy( socket, proxyHandler );
+}
