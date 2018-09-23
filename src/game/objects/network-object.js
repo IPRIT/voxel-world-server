@@ -1,4 +1,5 @@
 import { LivingObject } from "./living-object";
+import { SocketEvents } from "../network/socket-events";
 
 export const NetworkObjectEvents = {
   DISCONNECTED: 'network.disconnected'
@@ -16,7 +17,7 @@ export class NetworkObject extends LivingObject {
    * @type {number}
    * @private
    */
-  _connectionTimeoutMs = 60000;
+  _connectionTimeoutMs = 5000;
 
   /**
    * @type {number|*}
@@ -25,19 +26,29 @@ export class NetworkObject extends LivingObject {
   _connectionTimeout = null;
 
   /**
+   * @type {number|*}
+   * @private
+   */
+  _disconnectedAtMs = null;
+
+  /**
    * @param {Socket} socket
    */
   setSocket (socket) {
-    this._socket = socket;
+    if (this._socket) {
+      this.resetSocket();
+    }
 
-    // todo:
-    // socket.once();
+    this._socket = socket;
+    socket.once(SocketEvents.DISCONNECT, _ => this._onDisconnect());
   }
 
   /**
    * Reset current socket
    */
   resetSocket () {
+    this.disconnectClient();
+    this._socket.removeAllListeners();
     this._socket = null;
   }
 
@@ -60,6 +71,7 @@ export class NetworkObject extends LivingObject {
     if (this.hasConnectionTimeout) {
       this.cancelConnectionTimeout();
     }
+    this._disconnectedAtMs = Date.now();
     this._connectionTimeout = setTimeout(_ => {
       this._onConnectionTimeout();
     }, this._connectionTimeoutMs);
@@ -72,6 +84,7 @@ export class NetworkObject extends LivingObject {
     if (this.hasConnectionTimeout) {
       clearTimeout( this._connectionTimeout );
       this._connectionTimeout = null;
+      this._disconnectedAtMs = null;
     }
   }
 
@@ -87,6 +100,24 @@ export class NetworkObject extends LivingObject {
    */
   get hasConnectionTimeout () {
     return !!this._connectionTimeout;
+  }
+
+  /**
+   * @returns {number}
+   */
+  get timeToDisconnectMs () {
+    if (!this._disconnectedAtMs) {
+      return Infinity;
+    }
+    return Math.max( 0, this._disconnectedAtMs + this._connectionTimeoutMs - Date.now() );
+  }
+
+  /**
+   * @private
+   */
+  _onDisconnect () {
+    this.createConnectionTimeout();
+    this.emit( NetworkObjectEvents.DISCONNECTED, { byUser: true } );
   }
 
   /**

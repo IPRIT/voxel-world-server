@@ -1,6 +1,5 @@
 import { fetchGameSession } from "../../../methods/index";
-import { GameStatus } from "../../index";
-import { proxySocket } from "../../../utils";
+import { GameStatus } from "../../instance/game-status";
 
 const defaultErrorCode = 'invalid_game_session';
 
@@ -20,7 +19,6 @@ export function connectionVerifier (socket, next) {
   return verifyToken( sessionToken ).then(session => {
     return verifyInstance( session );
   }).then(session => {
-    socket = proxySocket( socket );
     socket.userSession = session;
     return session;
   }).then(_ => next()).catch( next );

@@ -35,7 +35,7 @@ export class SocketManager {
   initialize (server) {
     this._io = Socket( server, config.socket.options );
     this._io.use( connectionVerifier );
-    this._io.on( 'connection', socket => this._onConnection( proxySocket( socket ) ) );
+    this._io.on( 'connection', socket => this._onConnection( socket ) );
   }
 
   /**
@@ -72,9 +72,5 @@ export class SocketManager {
       const player = new Player( socket, userSession );
       players.addPlayer( player );
     }
-
-    const player = players.getPlayer( userId );
-
-    console.log( `[Socket#connection] ${player.nickname} joined the server.` );
   }
 }

@@ -1,6 +1,6 @@
 import { wrapRequest } from "../../../utils";
-import { GameStatus } from "../../../game";
 import { ApiError } from "../../error";
+import { GameStatus } from "../../../game";
 
 /**
  * @param {*} req

@@ -1,5 +1,5 @@
 import EventEmitter from 'eventemitter3';
-import { config } from "../../config";
+import { config } from "../../../config";
 
 export const GameStatusEvents = {
   STATUS_CHANGED: 'status-changed',

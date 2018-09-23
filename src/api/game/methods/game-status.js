@@ -1,6 +1,6 @@
 import { wrapRequest } from "../../../utils";
-import { GameStatus } from "../../../game";
 import Promise from 'bluebird';
+import { GameStatus } from "../../../game";
 
 /**
  * @param {*} req
