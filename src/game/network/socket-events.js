@@ -1,5 +1,6 @@
 export const SocketEvents = {
   DISCONNECT: 'disconnect',
   ERROR: 'error',
-  DISCONNECTING: 'disconnecting'
+  DISCONNECTING: 'disconnecting',
+  SYSTEM_ERROR: 'system-error',
 };

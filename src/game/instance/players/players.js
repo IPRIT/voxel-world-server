@@ -57,6 +57,12 @@ export class Players extends EventEmitter {
   addPlayer (player) {
     const gameStatus = GameStatus.getInstance();
 
+    if (!gameStatus.isAvailableToConnect) {
+      throw new Error( 'Unable to join: game already started' );
+    } else if (gameStatus.playersNumber >= gameStatus.maxPlayersNumber) {
+      throw new Error( 'Unable to join: too many players' );
+    }
+
     this._map.set( player.userId, player );
     this._subscribeEvents( player );
     gameStatus.setPlayersNumber( this.playersNumber );

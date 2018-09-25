@@ -1,9 +1,9 @@
 import Socket from 'socket.io';
 import { config } from "../../../config";
 import { connectionVerifier } from "./utils/index";
-import { extractSocketQuery, proxySocket } from "../../utils";
 import { Player } from "../objects";
 import { Players } from "../instance";
+import { SocketEvents } from "./socket-events";
 
 export class SocketManager {
 
@@ -50,14 +50,17 @@ export class SocketManager {
    * @private
    */
   _onConnection (socket) {
-    this._addOrRepairPlayer( socket );
+    return this._addOrRepairPlayer( socket ).catch(error => {
+      socket.emit( SocketEvents.SYSTEM_ERROR, error.message );
+    });
   }
 
   /**
    * @param {Socket} socket
+   * @returns {Player}
    * @private
    */
-  _addOrRepairPlayer (socket) {
+  async _addOrRepairPlayer (socket) {
     /**
      * @var {Session} userSession
      */
@@ -72,5 +75,7 @@ export class SocketManager {
       const player = new Player( socket, userSession );
       players.addPlayer( player );
     }
+
+    return players.getPlayer( userId );
   }
 }
