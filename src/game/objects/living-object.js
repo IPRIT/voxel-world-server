@@ -92,6 +92,8 @@ export class LivingObject extends EventEmitter {
   setTargetLocation (targetLocation, isInfinite = false) {
     this._targetLocation = new THREE.Vector3( targetLocation.x, targetLocation.y, targetLocation.z );
     this._targetLocationInfinite = isInfinite;
+    this._updateVelocityDirection();
+    this.setComingState();
   }
 
   /**
@@ -115,6 +117,35 @@ export class LivingObject extends EventEmitter {
    */
   setComingState (coming = true) {
     this._isComing = coming;
+  }
+
+  /**
+   * @param {number} velocityScalar
+   */
+  setVelocityScalar (velocityScalar) {
+    this._velocityScalar = velocityScalar;
+  }
+
+  /**
+   * @returns {number}
+   */
+  getTargetLocationDistance () {
+    let targetLocation = this._targetLocation.clone();
+    return targetLocation && targetLocation.setY( 0 )
+      .distanceTo(
+        this._position.clone().setY( 0 )
+      ) || 0;
+  }
+
+  /**
+   * Jump with object gravity
+   */
+  jump () {
+    if (!this._needsVerticalUpdate) {
+      this._resumeVerticalUpdate();
+    }
+    this._isJumping = true;
+    // this._gravity.setVelocity( -this._objectJumpVelocity );
   }
 
   /**
@@ -150,35 +181,6 @@ export class LivingObject extends EventEmitter {
    */
   get targetObject () {
     return this._targetObject;
-  }
-
-  /**
-   * @param {number} velocityScalar
-   */
-  setVelocityScalar (velocityScalar) {
-    this._velocityScalar = velocityScalar;
-  }
-
-  /**
-   * @returns {number}
-   */
-  getTargetLocationDistance () {
-    let targetLocation = this._targetLocation.clone();
-    return targetLocation && targetLocation.setY( 0 )
-      .distanceTo(
-        this._position.clone().setY( 0 )
-      ) || 0;
-  }
-
-  /**
-   * Object jump with own velocity
-   */
-  jump () {
-    if (!this._needsVerticalUpdate) {
-      this._resumeVerticalUpdate();
-    }
-    this._isJumping = true;
-    // this._gravity.setVelocity( -this._objectJumpVelocity );
   }
 
   /**
