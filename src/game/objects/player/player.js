@@ -1,4 +1,7 @@
 import { NetworkObject } from "../network-object";
+import { CharactersMap, CharactersMapReverted, LivingObjectType } from "../../dictionary";
+import { GameStatus } from "../../instance";
+import { PlayerEvents } from "./player-events";
 
 export class Player extends NetworkObject {
 
@@ -9,12 +12,19 @@ export class Player extends NetworkObject {
   _session = null;
 
   /**
+   * @type {number|*}
+   * @private
+   */
+  _characterType = null;
+
+  /**
    * @param {Socket} socket
    * @param {Session} session
    */
   constructor (socket, session) {
     super();
 
+    this.setLivingObjectType( LivingObjectType.PLAYER );
     this.setSocket( socket );
     this.setSession( session );
   }
@@ -34,6 +44,29 @@ export class Player extends NetworkObject {
     this.setSocket( socket );
     this.setSession( session );
     this.cancelConnectionTimeout();
+  }
+
+  /**
+   * Select hero
+   */
+  selectCharacter () {
+    const socket = this.socket;
+    socket.emit( PlayerEvents.SELECT_CHARACTER );
+    socket.once( PlayerEvents.CHARACTER_SELECTED, this._onCharacterSelected.bind( this ) );
+  }
+
+  /**
+   * @param {number} characterType
+   */
+  setCharacterType (characterType) {
+    const gameStatus = GameStatus.getInstance();
+    if (this._characterType
+      && !gameStatus.isAvailableToConnect) {
+      return;
+    }
+    this._characterType = characterType in CharactersMapReverted
+      ? characterType
+      : CharactersMap.MYSTIC;
   }
 
   /**
@@ -62,5 +95,39 @@ export class Player extends NetworkObject {
    */
   get nickname () {
     return this.user.nickname;
+  }
+
+  /**
+   * @returns {boolean}
+   */
+  get isCharacterSelected () {
+    return this._characterType !== null;
+  }
+
+  /**
+   * @returns {number|*}
+   */
+  get characterType () {
+    return this._characterType;
+  }
+
+  /**
+   * @returns {string}
+   */
+  get characterTypeName () {
+    return CharactersMapReverted[ this._characterType || CharactersMap.MYSTIC ];
+  }
+
+  /**
+   * @param {number} data
+   * @private
+   */
+  _onCharacterSelected (data) {
+    this.setCharacterType( data );
+
+    console.log(
+      `[#${this.userId} ${this.nickname}]`,
+      `selected "${this.characterTypeName}" as character.`
+    );
   }
 }

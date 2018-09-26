@@ -103,6 +103,15 @@ export class NetworkObject extends LivingObject {
   }
 
   /**
+   * @returns {boolean}
+   */
+  get isConnected () {
+    return this._socket
+      && this._socket.connected
+      && !this.hasConnectionTimeout;
+  }
+
+  /**
    * @returns {number}
    */
   get timeToDisconnectMs () {

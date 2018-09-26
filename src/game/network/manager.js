@@ -4,6 +4,7 @@ import { connectionVerifier } from "./utils/index";
 import { Player } from "../objects";
 import { Players } from "../instance";
 import { SocketEvents } from "./socket-events";
+import { PlayerEvents } from "../objects/player/player-events";
 
 export class SocketManager {
 
@@ -76,6 +77,12 @@ export class SocketManager {
       players.addPlayer( player );
     }
 
-    return players.getPlayer( userId );
+    const player = players.getPlayer( userId );
+
+    if (!player.isCharacterSelected && player.isConnected) {
+      player.selectCharacter();
+    }
+
+    return player;
   }
 }

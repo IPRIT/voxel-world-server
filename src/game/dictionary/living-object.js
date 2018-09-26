@@ -1,6 +1,7 @@
-import { revertObject } from "../../utils/game-utils";
+import { revertObject } from "../../utils/common-utils";
 
 export const LivingObjectType = {
+  UNKNOWN: 0,
   PLAYER: 1,
   ANIMAL: 2,
   OFFENSIVE: 3,

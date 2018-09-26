@@ -1,4 +1,4 @@
-import { revertObject } from "../../utils/game-utils";
+import { revertObject } from "../../utils/common-utils";
 
 export const Skills = {
   LAVA_STRIKE: 1,

@@ -1,4 +1,4 @@
-import { revertObject } from "../../utils/game-utils";
+import { revertObject } from "../../utils/common-utils";
 
 export const CharactersMap = {
   MYSTIC: 1,
@@ -7,7 +7,3 @@ export const CharactersMap = {
 };
 
 export const CharactersMapReverted = revertObject( CharactersMap );
-
-export const CharactersDictionary = {
-
-};
