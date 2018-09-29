@@ -75,3 +75,41 @@ export function ensureNumber (value) {
   value = Number( value );
   return Number.isNaN( value ) ? 0 : value;
 }
+
+
+/**
+ * @param {Function} fn
+ * @param {number} limit
+ * @returns {Function}
+ */
+export const throttle = (fn, limit) => {
+  let lastFn;
+  let lastRanAt;
+  return (...args) => {
+    if (!lastRanAt) {
+      fn( ...args );
+      lastRanAt = Date.now();
+    } else {
+      clearTimeout( lastFn );
+      lastFn = setTimeout(() => {
+        if ((Date.now() - lastRanAt) >= limit) {
+          fn( ...args );
+          lastRanAt = Date.now();
+        }
+      }, limit - (Date.now() - lastRanAt));
+    }
+  };
+};
+
+/**
+ * @param {Function} fn
+ * @param {number} delay
+ * @returns {Function}
+ */
+export const debounce = (fn, delay) => {
+  let debounceTimeout;
+  return (...args) => {
+    clearTimeout( debounceTimeout );
+    debounceTimeout = setTimeout( () => fn( ...args ), delay );
+  };
+};
