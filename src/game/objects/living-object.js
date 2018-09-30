@@ -368,7 +368,7 @@ export class LivingObject extends EventEmitter {
 
     // + remove
     let oldPosition = this.position.clone();
-    this.position.add( shiftVector );
+    this._position.add( shiftVector );
     let distancePassed = oldPosition.distanceTo( this.position );
     if (distancePassed < .01 && !this._targetLocationInfinite) {
       this.setComingState( false );
