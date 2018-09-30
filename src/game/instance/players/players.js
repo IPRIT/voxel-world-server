@@ -30,6 +30,17 @@ export class Players extends EventEmitter {
   }
 
   /**
+   * @param {number} deltaTime
+   */
+  update (deltaTime) {
+    const players = this.players;
+    for (let i = 0; i < players.length; ++i) {
+      const player = players[ i ];
+      player.update( deltaTime );
+    }
+  }
+
+  /**
    * Checks player in the map by user ID
    *
    * @param {number} userId
@@ -101,6 +112,13 @@ export class Players extends EventEmitter {
   }
 
   /**
+   * @returns {Array<Player>}
+   */
+  get players () {
+    return [ ...this._map.values() ];
+  }
+
+  /**
    * @returns {number}
    */
   get playersNumber () {
@@ -126,6 +144,7 @@ export class Players extends EventEmitter {
    * @param {Player} player
    * @param {boolean} byUser
    * @param {boolean} byServer
+   * @private
    */
   _onPlayerDisconnected (player, { byUser = false, byServer = false }) {
     if (byServer) {

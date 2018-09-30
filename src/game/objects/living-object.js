@@ -1,8 +1,9 @@
-import * as THREE from 'three';
 import { EventEmitter } from "events";
+import * as THREE from 'three';
+import { ObjectGravity } from "../physic";
 import { warp } from "../../utils/game-utils";
 import { LivingObjectType, LivingObjectTypeReverted } from "../dictionary";
-import { WORLD_MAP_BLOCK_SIZE } from "../vars";
+import { WORLD_MAP_BLOCK_SIZE, WORLD_MAP_SIZE } from "../vars";
 
 export class LivingObject extends EventEmitter {
 
@@ -16,7 +17,11 @@ export class LivingObject extends EventEmitter {
    * @type {THREE.Vector3}
    * @private
    */
-  _position = new THREE.Vector3();
+  _position = new THREE.Vector3(
+    WORLD_MAP_SIZE / 2 * WORLD_MAP_BLOCK_SIZE,
+    510,
+    WORLD_MAP_SIZE / 2 * WORLD_MAP_BLOCK_SIZE
+  );
 
   /**
    * @type {string}
@@ -58,7 +63,13 @@ export class LivingObject extends EventEmitter {
    * @type {boolean}
    * @private
    */
-  _needsVerticalUpdate = false;
+  _needsVerticalUpdate = true;
+
+  /**
+   * @type {number}
+   * @private
+   */
+  _velocityScalar = .2;
 
   /**
    * @type {THREE.Vector3}
@@ -83,6 +94,29 @@ export class LivingObject extends EventEmitter {
    * @private
    */
   _objectJumpVelocity = 25;
+
+  /**
+   * @type {ObjectGravity}
+   * @private
+   */
+  _gravity = new ObjectGravity();
+
+  /**
+   * @param {number} deltaTime
+   */
+  update (deltaTime) {
+    if (this._isComing) {
+      if (this.getTargetLocationDistance() > warp( this._velocityScalar, deltaTime )) {
+        this._nextPosition( deltaTime );
+      } else {
+        this.setComingState( false );
+      }
+    }
+
+    if (this._needsVerticalUpdate) {
+      this._updateVerticalPosition( deltaTime );
+    }
+  }
 
   /**
    * @param {number} objectType
@@ -136,10 +170,38 @@ export class LivingObject extends EventEmitter {
   }
 
   /**
+   * @param {number} blocksHeight
+   */
+  setObjectBlocksHeight (blocksHeight) {
+    this._objectBlocksHeight = blocksHeight;
+  }
+
+  /**
+   * @param {number} blocksRadius
+   */
+  setObjectBlocksRadius (blocksRadius) {
+    this._objectBlocksRadius = blocksRadius;
+  }
+
+  /**
+   * @param {number} jumpVelocity
+   */
+  setObjectJumpVelocity (jumpVelocity) {
+    this._objectJumpVelocity = jumpVelocity;
+  }
+
+  /**
    * @param {number} velocityScalar
    */
   setVelocityScalar (velocityScalar) {
     this._velocityScalar = velocityScalar;
+  }
+
+  /**
+   * @param {number} acceleration
+   */
+  setGravityAcceleration (acceleration) {
+    this._gravity.setAcceleration( acceleration );
   }
 
   /**
@@ -160,8 +222,9 @@ export class LivingObject extends EventEmitter {
     if (!this._needsVerticalUpdate) {
       this._resumeVerticalUpdate();
     }
+
     this._isJumping = true;
-    // this._gravity.setVelocity( -this._objectJumpVelocity );
+    this._gravity.setVelocity( -this._objectJumpVelocity );
 
     console.log( `[LivingObject#jump] [${this._name}] jumped.` );
   }
@@ -303,6 +366,23 @@ export class LivingObject extends EventEmitter {
         warp( this._velocityScalar, deltaTime )
       );
 
+    // + remove
+    let oldPosition = this.position.clone();
+    this.position.add( shiftVector );
+    let distancePassed = oldPosition.distanceTo( this.position );
+    if (distancePassed < .01 && !this._targetLocationInfinite) {
+      this.setComingState( false );
+    }
+
+    if (!this._needsVerticalUpdate) {
+      this._resumeVerticalUpdate();
+    }
+
+    console.log( this.name, this._position.toArray(), this._isComing );
+    // - remove
+
+
+
     /*let { shiftPosition, changed } = this.map.collisions.clampNextPosition(
       this.position, shiftVector, {
         objectBlocksRadius: this._objectBlocksRadius,
@@ -330,6 +410,25 @@ export class LivingObject extends EventEmitter {
    * @private
    */
   _updateVerticalPosition ( deltaTime ) {
+    let shiftY = -this._gravity.update( deltaTime );
+    let falling = shiftY < 0;
+
+    // + remove
+    let changed = this.position.y + shiftY < 0;
+
+    this.position.y = changed
+      ? 0 : this.position.y + shiftY;
+
+    if (changed) {
+      this._gravity.resetVelocity();
+
+      if (falling) {
+        !this._isComing && this._stopVerticalUpdate();
+        this._isJumping && (this._isJumping = false);
+      }
+    }
+    // - remove
+
     // let shiftY = -this._gravity.update( deltaTime );
     // let falling = shiftY < 0;
 
@@ -356,8 +455,8 @@ export class LivingObject extends EventEmitter {
    * @private
    */
   _stopVerticalUpdate () {
-    // this._gravity.stopUpdatingVelocity();
-    // this._gravity.resetVelocity();
+    this._gravity.stopUpdatingVelocity();
+    this._gravity.resetVelocity();
     this._needsVerticalUpdate = false;
   }
 
@@ -365,7 +464,7 @@ export class LivingObject extends EventEmitter {
    * @private
    */
   _resumeVerticalUpdate () {
-    // this._gravity.resumeUpdatingVelocity();
+    this._gravity.resumeUpdatingVelocity();
     this._needsVerticalUpdate = true;
   }
 

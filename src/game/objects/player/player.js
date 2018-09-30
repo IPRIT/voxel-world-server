@@ -2,6 +2,13 @@ import { NetworkPlayer } from "./network-player";
 import { CharactersMap, CharactersMapReverted, LivingObjectType } from "../../dictionary";
 import { GameStatus } from "../../instance";
 import { PlayerEvents } from "./player-events";
+import {
+  PLAYER_BLOCKS_HEIGHT,
+  PLAYER_BLOCKS_RADIUS,
+  PLAYER_JUMP_VELOCITY,
+  PLAYER_VELOCITY_SCALAR
+} from "./player-defaults";
+import { WORLD_GRAVITY } from "../../vars";
 
 export class Player extends NetworkPlayer {
 
@@ -28,6 +35,12 @@ export class Player extends NetworkPlayer {
     this.setSocket( socket );
     this.setSession( session );
     this.setName( this.nickname );
+
+    this.setObjectBlocksHeight( PLAYER_BLOCKS_HEIGHT );
+    this.setObjectBlocksRadius( PLAYER_BLOCKS_RADIUS );
+    this.setObjectJumpVelocity( PLAYER_JUMP_VELOCITY );
+    this.setVelocityScalar( PLAYER_VELOCITY_SCALAR );
+    this.setGravityAcceleration( WORLD_GRAVITY );
   }
 
   /**
