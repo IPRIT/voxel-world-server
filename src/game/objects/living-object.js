@@ -19,6 +19,12 @@ export class LivingObject extends EventEmitter {
   _position = new THREE.Vector3();
 
   /**
+   * @type {string}
+   * @private
+   */
+  _name = 'Unknown';
+
+  /**
    * @type {THREE.Vector3}
    * @private
    */
@@ -86,14 +92,24 @@ export class LivingObject extends EventEmitter {
   }
 
   /**
-   * @param {THREE.Vector3} targetLocation
+   * @param {string} name
+   */
+  setName (name) {
+    this._name = name;
+  }
+
+  /**
+   * @param {Vector3|Object} targetLocation
    * @param {boolean} isInfinite
    */
   setTargetLocation (targetLocation, isInfinite = false) {
     this._targetLocation = new THREE.Vector3( targetLocation.x, targetLocation.y, targetLocation.z );
     this._targetLocationInfinite = isInfinite;
     this._updateVelocityDirection();
+
     this.setComingState();
+
+    console.log( `[LivingObject#setTargetLocation] [${this._name}] changed target location.` );
   }
 
   /**
@@ -146,6 +162,8 @@ export class LivingObject extends EventEmitter {
     }
     this._isJumping = true;
     // this._gravity.setVelocity( -this._objectJumpVelocity );
+
+    console.log( `[LivingObject#jump] [${this._name}] jumped.` );
   }
 
   /**
@@ -160,6 +178,13 @@ export class LivingObject extends EventEmitter {
    */
   get livingObjectTypeName () {
     return LivingObjectTypeReverted[ this._livingObjectType ];
+  }
+
+  /**
+   * @returns {string}
+   */
+  get name () {
+    return this._name;
   }
 
   /**

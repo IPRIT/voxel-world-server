@@ -1,9 +1,9 @@
-import { NetworkObject } from "../network-object";
+import { NetworkPlayer } from "./network-player";
 import { CharactersMap, CharactersMapReverted, LivingObjectType } from "../../dictionary";
 import { GameStatus } from "../../instance";
 import { PlayerEvents } from "./player-events";
 
-export class Player extends NetworkObject {
+export class Player extends NetworkPlayer {
 
   /**
    * @type {Session}
@@ -27,6 +27,7 @@ export class Player extends NetworkObject {
     this.setLivingObjectType( LivingObjectType.PLAYER );
     this.setSocket( socket );
     this.setSession( session );
+    this.setName( this.nickname );
   }
 
   /**

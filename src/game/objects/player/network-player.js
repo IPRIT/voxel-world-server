@@ -1,11 +1,10 @@
-import { LivingObject } from "./living-object";
-import { SocketEvents } from "../network/socket-events";
+import * as THREE from "three";
+import { LivingObject } from "../living-object";
+import { SocketEvents } from "../../network/socket-events";
+import { PlayerEvents } from "./player-events";
+import { ensureNumber } from "../../../utils/common-utils";
 
-export const NetworkObjectEvents = {
-  DISCONNECTED: 'network.disconnected'
-};
-
-export class NetworkObject extends LivingObject {
+export class NetworkPlayer extends LivingObject {
 
   /**
    * @type {Socket}
@@ -32,6 +31,12 @@ export class NetworkObject extends LivingObject {
   _disconnectedAtMs = null;
 
   /**
+   * @type {Map<string, number>}
+   * @private
+   */
+  _lastActionMap = new Map();
+
+  /**
    * @param {Socket} socket
    */
   setSocket (socket) {
@@ -40,7 +45,7 @@ export class NetworkObject extends LivingObject {
     }
 
     this._socket = socket;
-    socket.once(SocketEvents.DISCONNECT, _ => this._onDisconnect());
+    this._subscribeEvents();
   }
 
   /**
@@ -59,7 +64,7 @@ export class NetworkObject extends LivingObject {
     const socket = this._socket;
 
     if (socket) {
-      socket.emit( NetworkObjectEvents.DISCONNECTED, { byServer: true } );
+      socket.emit( PlayerEvents.DISCONNECTED, { byServer: true } );
       socket.disconnect( true );
     }
   }
@@ -126,7 +131,7 @@ export class NetworkObject extends LivingObject {
    */
   _onDisconnect () {
     this.createConnectionTimeout();
-    this.emit( NetworkObjectEvents.DISCONNECTED, { byUser: true } );
+    this.emit( PlayerEvents.DISCONNECTED, { byUser: true } );
   }
 
   /**
@@ -134,6 +139,68 @@ export class NetworkObject extends LivingObject {
    */
   _onConnectionTimeout () {
     this.disconnectClient();
-    this.emit( NetworkObjectEvents.DISCONNECTED, { byServer: true } );
+    this.emit( PlayerEvents.DISCONNECTED, { byServer: true } );
+  }
+
+  /**
+   * @private
+   */
+  _subscribeEvents () {
+    const socket = this._socket;
+    socket.once( SocketEvents.DISCONNECT, _ => this._onDisconnect() );
+    socket.on( PlayerEvents.SET_TARGET_LOCATION, this._onSetTargetLocation.bind( this ) );
+    socket.on( PlayerEvents.JUMP, this._onJump.bind( this ) );
+  }
+
+  /**
+   * @param {Array<number>} location
+   * @param {boolean} isInfinite
+   * @param {number} calledAtMs
+   * @private
+   */
+  _onSetTargetLocation (location = [], isInfinite = false, calledAtMs = Date.now()) {
+    const actionName = 'setTargetLocation';
+    if (!location && !this._isNewestAction( actionName, calledAtMs )) {
+      return;
+    }
+
+    const [ x = 0, y = 0, z = 0 ] = location;
+    this.setTargetLocation( { x, y, z }, isInfinite );
+  }
+
+  /**
+   * @private
+   */
+  _onJump (calledAtMs = Date.now()) {
+    const actionName = 'jump';
+    if (!this._isNewestAction( actionName, calledAtMs )) {
+      return;
+    }
+
+    this.jump();
+  }
+
+  /**
+   * @param {string} action
+   * @param {number} value
+   * @returns {boolean}
+   * @private
+   */
+  _isNewestAction (action, value) {
+    const lastActionAtMs = this._lastActionMap.get( action );
+    const isNewest = !lastActionAtMs || !value || value > lastActionAtMs;
+    isNewest && this._updateAction( action, value );
+    return isNewest;
+  }
+
+  /**
+   * @param {string} action
+   * @param {number} value
+   * @private
+   */
+  _updateAction (action, value) {
+    if (value) {
+      this._lastActionMap.set( action, ensureNumber( value ) );
+    }
   }
 }

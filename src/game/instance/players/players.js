@@ -1,8 +1,8 @@
 import EventEmitter from 'events';
 import { PlayersEvents } from "./players-events";
-import { NetworkObjectEvents } from "../../objects";
 import { config } from "../../../../config";
 import { GameStatus } from "../game-status";
+import { PlayerEvents } from "../../objects/player";
 
 export class Players extends EventEmitter {
 
@@ -119,7 +119,7 @@ export class Players extends EventEmitter {
    * @private
    */
   _subscribeEvents (player) {
-    player.on(NetworkObjectEvents.DISCONNECTED, args => this._onPlayerDisconnected( player, args ));
+    player.on( PlayerEvents.DISCONNECTED, args => this._onPlayerDisconnected( player, args ) );
   }
 
   /**
