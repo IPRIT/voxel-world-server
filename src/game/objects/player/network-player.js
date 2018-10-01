@@ -149,7 +149,8 @@ export class NetworkPlayer extends LivingObject {
     socket.once( SocketEvents.DISCONNECT, _ => this._onDisconnect() );
     socket.on( PlayerEvents.SET_TARGET_LOCATION, this._onSetTargetLocation.bind( this ) );
     socket.on( PlayerEvents.JUMP, this._onJump.bind( this ) );
-    socket.on( PlayerEvents.SET_COMING_STATE, this._onSetComingState.bind( this ) );
+    socket.on( PlayerEvents.START_MOVING, this._onStartMoving.bind( this ) );
+    socket.on( PlayerEvents.STOP_MOVING, this._onStopMoving.bind( this ) );
   }
 
   /**
@@ -181,17 +182,29 @@ export class NetworkPlayer extends LivingObject {
   }
 
   /**
-   * @param {boolean} state
    * @param {number} calledAtMs
    * @private
    */
-  _onSetComingState (state, calledAtMs = Date.now()) {
-    const actionName = 'setComingState';
+  _onStartMoving (calledAtMs = Date.now()) {
+    const actionName = 'startMoving';
     if (!this._isNewestAction( actionName, calledAtMs )) {
       return;
     }
 
-    this.setComingState( state );
+    this.startMoving();
+  }
+
+  /**
+   * @param {number} calledAtMs
+   * @private
+   */
+  _onStopMoving (calledAtMs = Date.now()) {
+    const actionName = 'stopMoving';
+    if (!this._isNewestAction( actionName, calledAtMs )) {
+      return;
+    }
+
+    this.stopMoving();
   }
 
   /**

@@ -44,6 +44,15 @@ export class Player extends NetworkPlayer {
   }
 
   /**
+   * @param {number} deltaTime
+   */
+  update (deltaTime) {
+    super.update( deltaTime );
+
+    this.socket.emit( 'player.position', this.position.toArray() );
+  }
+
+  /**
    * @param {Session} session
    */
   setSession (session) {

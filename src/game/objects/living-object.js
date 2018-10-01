@@ -51,7 +51,7 @@ export class LivingObject extends EventEmitter {
    * @type {boolean}
    * @private
    */
-  _isComing = false;
+  _isMoving = false;
 
   /**
    * @type {boolean}
@@ -105,17 +105,19 @@ export class LivingObject extends EventEmitter {
    * @param {number} deltaTime
    */
   update (deltaTime) {
-    if (this._isComing) {
+    if (this._isMoving) {
       if (this.getTargetLocationDistance() > warp( this._velocityScalar, deltaTime )) {
         this._nextPosition( deltaTime );
       } else {
-        this.setComingState( false );
+        this.stopMoving();
       }
     }
 
     if (this._needsVerticalUpdate) {
       this._updateVerticalPosition( deltaTime );
     }
+
+    // console.log( this.name, this._position.toArray(), this._isMoving );
   }
 
   /**
@@ -141,7 +143,7 @@ export class LivingObject extends EventEmitter {
     this._targetLocationInfinite = isInfinite;
     this._updateVelocityDirection();
 
-    this.setComingState();
+    this.startMoving();
 
     console.log( `[LivingObject#setTargetLocation] [${this._name}] changed target location.` );
   }
@@ -163,10 +165,17 @@ export class LivingObject extends EventEmitter {
   }
 
   /**
-   * @param {boolean} coming
+   * Starts moving object to the target
    */
-  setComingState (coming = true) {
-    this._isComing = coming;
+  startMoving () {
+    this._isMoving = true;
+  }
+
+  /**
+   * Stops the object
+   */
+  stopMoving () {
+    this._isMoving = false;
   }
 
   /**
@@ -274,8 +283,8 @@ export class LivingObject extends EventEmitter {
   /**
    * @returns {boolean}
    */
-  get isComing () {
-    return this._isComing;
+  get isMoving () {
+    return this._isMoving;
   }
 
   /**
@@ -371,14 +380,12 @@ export class LivingObject extends EventEmitter {
     this._position.add( shiftVector );
     let distancePassed = oldPosition.distanceTo( this.position );
     if (distancePassed < .01 && !this._targetLocationInfinite) {
-      this.setComingState( false );
+      this.stopMoving();
     }
 
     if (!this._needsVerticalUpdate) {
       this._resumeVerticalUpdate();
     }
-
-    console.log( this.name, this._position.toArray(), this._isComing );
     // - remove
 
 
@@ -398,7 +405,7 @@ export class LivingObject extends EventEmitter {
     this.position.add( shiftPosition );
     let distancePassed = oldPosition.distanceTo( this.position );
     if (distancePassed < .01 && !this._targetLocationInfinite) {
-      this.setComingState( false );
+      this.stopMoving();
     }
 
     if (!this._needsVerticalUpdate) {
@@ -423,7 +430,7 @@ export class LivingObject extends EventEmitter {
       this._gravity.resetVelocity();
 
       if (falling) {
-        !this._isComing && this._stopVerticalUpdate();
+        !this._isMoving && this._stopVerticalUpdate();
         this._isJumping && (this._isJumping = false);
       }
     }
