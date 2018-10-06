@@ -10,8 +10,6 @@ export class World extends EventEmitter {
     let map = WorldMap.getMap();
     if (!map.isLoaded) {
       map.load().then(_ => {
-        WorldMap._instance = null;
-        map = null;
       });
     }
   }

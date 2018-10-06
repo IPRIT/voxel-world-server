@@ -168,6 +168,6 @@ export class WorldMap extends EventEmitter {
     return Promise.resolve( chunksToLoad ).map(chunkIndex => {
       const [ x, z ] = parseChunkIndex( chunkIndex );
       return loader.load( x, z );
-    }, { concurrency: 100 });
+    });
   }
 }
