@@ -32,6 +32,7 @@
     "eventemitter3": "^3.1.0",
     "express": "^4.16.3",
     "lodash": "^4.17.10",
+    "parse-magica-voxel": "^1.0.3",
     "raf": "^3.4.0",
     "request": "^2.87.0",
     "request-promise": "^4.2.2",

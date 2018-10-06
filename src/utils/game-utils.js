@@ -17,8 +17,8 @@ export function rgbToInt(colorArray) {
 }
 
 /**
- * @param {THREE.Vector3} vector
- * @returns {THREE.Vector3}
+ * @param {THREE.Vector3|Vector3} vector
+ * @returns {THREE.Vector3|Vector3}
  */
 export function floorVector (vector) {
   vector.x |= 0;
@@ -28,7 +28,7 @@ export function floorVector (vector) {
 }
 
 /**
- * @param {THREE.Vector3} vector
+ * @param {THREE.Vector3|Vector3} vector
  * @returns {boolean}
  */
 export function isVectorZeroStrict (vector) {
@@ -36,7 +36,7 @@ export function isVectorZeroStrict (vector) {
 }
 
 /**
- * @param {THREE.Vector3} vector
+ * @param {THREE.Vector3|Vector3} vector
  * @param {number} eps
  * @returns {boolean}
  */
