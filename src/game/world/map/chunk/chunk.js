@@ -164,8 +164,6 @@ export class Chunk {
   }
   
   /**
-   * Works correctly
-   *
    * @param {number} x
    * @param {number} z
    * @returns {number}
@@ -175,6 +173,8 @@ export class Chunk {
   }
   
   /**
+   * Works correctly
+   *
    * @param {number} x
    * @param {number} z
    * @param {number} fromY
