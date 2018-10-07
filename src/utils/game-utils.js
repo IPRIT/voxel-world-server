@@ -70,29 +70,29 @@ export function warpRatio (deltaTime, framesDeltaSec = FRAMES_DELTA_SEC) {
 
 /**
  * @param {number} value
- * @param {number} bitIndex
+ * @param {number} bitPosition
  * @returns {number}
  */
-export function hasBit (value, bitIndex) {
-  return value & ( 1 << bitIndex );
+export function hasBit (value, bitPosition) {
+  return value & powers.powersOfTwo[ bitPosition ];
 }
 
 /**
  * @param {number} value
- * @param {number} bitIndex
+ * @param {number} bitPosition
  * @returns {number}
  */
-export function setBit (value, bitIndex) {
-  return value | ( 1 << bitIndex );
+export function setBit (value, bitPosition) {
+  return value | powers.powersOfTwo[ bitPosition ];
 }
 
 /**
  * @param {number} value
- * @param {number} bitIndex
+ * @param {number} bitPosition
  * @returns {number}
  */
-export function unsetBit (value, bitIndex) {
-  return value & ~( 1 << bitIndex );
+export function unsetBit (value, bitPosition) {
+  return value & ~powers.powersOfTwo[ bitPosition ];
 }
 
 /**
@@ -116,7 +116,7 @@ export function nearestHighestPowerOfTwo (v) {
  * @returns {boolean}
  */
 export function isPowerOfTwo (v) {
-  return v && !(v & (v - 1));
+  return v && !( v & ( v - 1 ) );
 }
 
 /**
@@ -162,7 +162,7 @@ const powersOfTwo = {
   0: 1
 };
 
-for (let i = 1; i < 32; ++i) {
+for (let i = 1; i <= 32; ++i) {
   const powerOfTwo = powersOfTwo[ i - 1 ] * 2;
   powersOfTwo[ i ] = powerOfTwo;
   powersOfTwoInv[ powerOfTwo ] = i;

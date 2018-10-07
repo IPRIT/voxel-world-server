@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
 import Promise from 'bluebird';
 import * as THREE from 'three';
+import { ChunkLoader } from "./chunk";
 import { buildChunkIndex, floorVector, parseChunkIndex } from "../../../utils/game-utils";
 import {
   WORLD_MAP_CHUNK_HEIGHT,
@@ -9,7 +10,6 @@ import {
   WORLD_MAP_CHUNK_VIEW_DISTANCE,
   WORLD_MAP_SIZE
 } from "../../vars";
-import { ChunkLoader } from "./chunk";
 
 export class WorldMap extends EventEmitter {
 
@@ -47,9 +47,10 @@ export class WorldMap extends EventEmitter {
   load () {
     return Promise.try(_ => {
       const chunksToLoad = this.getVisibleChunks( this.center, 1e9 );
-
       return this._loadChunks( chunksToLoad );
-    }).then(chunks => {
+    }).tap(chunks => {
+      console.log( `[WorldMap] ${chunks.length} chunks loaded into memory.` );
+      this._chunks = chunks;
       return chunks;
     });
   }
@@ -168,6 +169,6 @@ export class WorldMap extends EventEmitter {
     return Promise.resolve( chunksToLoad ).map(chunkIndex => {
       const [ x, z ] = parseChunkIndex( chunkIndex );
       return loader.load( x, z );
-    });
+    }, { concurrency: 30 });
   }
 }

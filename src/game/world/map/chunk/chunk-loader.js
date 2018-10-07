@@ -25,8 +25,8 @@ export class ChunkLoader {
     return Promise.try(_ => {
       return loader.load( fullPath );
     }).then(model => {
-      const chunk = new Chunk( model, { x, z } );
-      return chunk.init();
+      const chunk = new Chunk({ x, z });
+      return chunk.createFrom( model );
     });
   }
 

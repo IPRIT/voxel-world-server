@@ -83,6 +83,13 @@ export class VoxModel {
   }
 
   /**
+   * Dispose the model
+   */
+  dispose () {
+    this._voxelData = null;
+  }
+
+  /**
    * @returns {{x: number, y: number, z: number, c: number}[]}
    */
   get xyzi () {

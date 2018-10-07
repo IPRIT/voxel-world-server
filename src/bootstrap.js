@@ -7,6 +7,7 @@ import http from 'http';
 import { config } from "../config";
 import { normalizePort } from "./utils/server-utils";
 import { SocketManager } from "./game/network";
+import { WorldMap } from "./game/world/map";
 
 /**
  * Get port from config and set in Express.
@@ -21,6 +22,9 @@ app.set( 'env', process.env.NODE_ENV );
 const server = http.createServer( app );
 const socketManager = SocketManager.getManager();
 socketManager.initialize( server );
+
+const map = WorldMap.getMap();
+setTimeout(_ => map.load(), 1000);
 
 /**
  * Listen on provided port, on all network interfaces.

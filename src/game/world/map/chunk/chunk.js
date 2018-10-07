@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { ChunkHeightMap } from "./chunk-height-map";
 import { buildChunkIndex, hasBit, lowestMaxBit, powers } from "../../../../utils/game-utils";
 import {
   WORLD_MAP_CHUNK_HEIGHT,
@@ -85,11 +84,6 @@ export class Chunk {
   _inited = false;
 
   /**
-   * @type {boolean}
-   */
-  needsUpdate = false;
-
-  /**
    * @param {number} x
    * @param {number} z
    */
@@ -101,17 +95,7 @@ export class Chunk {
    * @param {VoxModel} model
    */
   createFrom (model) {
-    this._createBufferFrom( model )
-  }
-
-  /**
-   * Initializing chunk buffer
-   * @returns {Chunk}
-   */
-  init () {
-    this._createBlocksBuffer();
-    this._inited = true;
-    this._model = null;
+    this._createBufferFrom( model );
 
     return this;
   }
@@ -120,11 +104,14 @@ export class Chunk {
    * Computes buffer offset
    *
    * @param {number} x
+   * @param {number} y
    * @param {number} z
    * @returns {number}
    */
-  getBufferOffset (x, z) {
-    return ( x << WORLD_MAP_CHUNK_SIZE_POWER ) + z;
+  getBufferOffset (x, y, z) {
+    return ( x << WORLD_MAP_CHUNK_SIZE_POWER )
+      + ( y >> 5 )
+      + z;
   }
   
   /**
@@ -134,7 +121,10 @@ export class Chunk {
    * @returns {boolean}
    */
   hasBlock (x, y, z) {
-    return !!this._hasBit( (x << WORLD_MAP_CHUNK_SIZE_POWER) + z, y );
+    return !!this._hasBit(
+      this.getBufferOffset( x, y, z ),
+      y & 0x1f
+    );
   }
   
   /**
@@ -144,7 +134,10 @@ export class Chunk {
    * @returns {boolean}
    */
   addBlock (x, y, z) {
-    this._setBit( (x << WORLD_MAP_CHUNK_SIZE_POWER) + z, y );
+    this._setBit(
+      this.getBufferOffset( x, y, z ),
+      y & 0x1f
+    );
   }
   
   /**
@@ -153,58 +146,32 @@ export class Chunk {
    * @param {number} z
    * @returns {boolean}
    */
-  removeBlock (x, y, z) {
-    this._unsetBit( (x << WORLD_MAP_CHUNK_SIZE_POWER) + z, y );
+  deleteBlock (x, y, z) {
+    this._unsetBit(
+      this.getBufferOffset( x, y, z ),
+      y & 0x1f
+    );
   }
-  
+
   /**
    * @param {number} x
    * @param {number} z
-   * @returns {number}
+   * @returns {Uint32Array}
    */
   getColumn (x, z) {
-    return this._buffer[ (x << WORLD_MAP_CHUNK_SIZE_POWER) + z ];
+    const bufferOffset = this.getBufferOffset( x, 0, z );
+    return this._buffer.slice( bufferOffset, bufferOffset + COLUMN_CAPACITY );
   }
   
   /**
-   * This method is faster than getMinMaxBlock2 relying on the performance test
+   * Works correctly
    *
    * @param {number} x
    * @param {number} z
    * @returns {number}
    */
-  getMinMaxBlock (x, z) {
-    let column = this.getColumn( x, z );
-    let minMaxY = 0, minY = -1;
-    for (let y = 0; y < WORLD_MAP_CHUNK_HEIGHT; ++y) {
-      if (hasBit( column, y )) {
-        minMaxY = y;
-        if (minY === -1) {
-          minY = y;
-        }
-      } else if (minY >= 0) {
-        break;
-      }
-    }
-    return minMaxY;
-  }
-  
-  /**
-   * @param {number} x
-   * @param {number} z
-   * @returns {number}
-   */
-  getMinMaxBlock2 (x, z) {
-    let column = this.getColumn( x, z );
-    if (!column) {
-      return 0;
-    }
-    let minMax = lowestMaxBit( column );
-    if (minMax < 0) {
-      return 30; // lowestMaxBit returns negative value when log2 is 30 (single case)
-    }
-    // lowestMaxBit returns zero when power of 2 is 31 (single case)
-    return minMax === 0 ? 31 : powers.powersOfTwoInv[ minMax ]; // minMax always power of 2
+  getMinMaxY (x, z) {
+    return this.getMinMaxYBetween( x, z, 0, WORLD_MAP_CHUNK_HEIGHT - 1 )
   }
   
   /**
@@ -214,68 +181,68 @@ export class Chunk {
    * @param {number} toY
    * @returns {number}
    */
-  getMinMaxBlockBetween (x, z, fromY, toY) {
+  getMinMaxYBetween (x, z, fromY, toY) {
     let column = this.getColumn( x, z );
-    let minMaxY = fromY, minY = -1;
-    for (let y = fromY; y < toY; ++y) {
-      if (hasBit( column, y )) {
-        minMaxY = y;
-        if (minY === -1) {
-          minY = y;
+    let minMaxY = 0, minY = -1;
+
+    fromY = Math.max( fromY, 0 );
+    toY = Math.min( toY, WORLD_MAP_CHUNK_HEIGHT - 1 );
+
+    const minColumn = Math.max( fromY >> 5, 0 );
+    const maxColumn = Math.min( toY >> 5, column.length - 1 );
+
+    l1: for (let columnOffset = minColumn; columnOffset <= maxColumn; ++columnOffset) {
+      const value = column[ columnOffset ];
+
+      for (let y = fromY & 0x1f; y <= ( toY & 0x1f ); ++y) {
+        if (hasBit( value, y )) {
+          minMaxY = columnOffset * 0x20 + y;
+          if (minY === -1) {
+            minY = columnOffset * 0x20 + y;
+          }
+        } else if (minY >= 0) {
+          break l1;
         }
-      } else if (minY >= 0) {
-        break;
       }
     }
+
     return minMaxY;
   }
 
   /**
-   * @param {number|THREE.Vector3} x
+   * @param {number} x
    * @param {number} y
    * @param {number} z
    * @returns {boolean}
    */
-  inside (x, y, z) {
-    if (typeof x === 'object') {
-      const position = x;
-      x = position.x;
-      y = position.y;
-      z = position.z;
-    }
-    let limits = {
+  inside ({ x, y, z }) {
+    let restrictions = {
       x: [ 0, this.size.x ],
       y: [ 0, this.size.y ],
       z: [ 0, this.size.z ]
     };
-    return x >= limits.x[0] && x < limits.x[1] &&
-      y >= limits.y[0] && y < limits.y[1] &&
-      z >= limits.z[0] && z < limits.z[1];
+    return x >= restrictions.x[0] && x < restrictions.x[1] &&
+      y >= restrictions.y[0] && y < restrictions.y[1] &&
+      z >= restrictions.z[0] && z < restrictions.z[1];
   }
 
   /**
    * Check world coordinates
    *
-   * @param {number|THREE.Vector3|Vector3} x
+   * @param {number} x
    * @param {number} y
    * @param {number} z
    * @returns {boolean}
    */
-  absoluteInside (x, y, z) {
-    if (typeof x === 'object') {
-      const position = x;
-      x = position.x;
-      y = position.y;
-      z = position.z;
-    }
-    let limits = {
-      x: [this._fromX, this._toX],
-      y: [this._fromY, this._toY],
-      z: [this._fromZ, this._toZ]
+  absoluteInside ({ x, y, z }) {
+    let restrictions = {
+      x: [ this._fromX, this._toX ],
+      y: [ this._fromY, this._toY ],
+      z: [ this._fromZ, this._toZ ]
     };
-    return x > limits.x[0] && x < limits.x[1] &&
-      y >= limits.y[0] && y < limits.y[1] &&
-      z > limits.z[0] && z < limits.z[1];
+    return x > restrictions.x[0] && x < restrictions.x[1] &&
+      y >= restrictions.y[0] && y < restrictions.y[1] &&
+      z > restrictions.z[0] && z < restrictions.z[1];
   }
 
   /**
@@ -370,13 +337,16 @@ export class Chunk {
     }
     
     this._buffer = new Uint32Array( this.bufferSize );
-    
+
     const blocks = model.getBlocks();
 
     for (let i = 0; i < blocks.length; ++i) {
       const { x, y, z } = blocks[ i ];
       this.addBlock( x, y, z );
     }
+
+    // free memory
+    model.dispose();
   }
 
   /**
@@ -401,7 +371,7 @@ export class Chunk {
    * @private
    */
   _hasBit (bufferOffset, bitPosition) {
-    return this._buffer[ bufferOffset ] & (1 << bitPosition);
+    return this._buffer[ bufferOffset ] & powers.powersOfTwo[ bitPosition ];
   }
   
   /**
@@ -410,7 +380,7 @@ export class Chunk {
    * @private
    */
   _setBit (bufferOffset, bitPosition) {
-    this._buffer[ bufferOffset ] |= 1 << bitPosition;
+    this._buffer[ bufferOffset ] |= powers.powersOfTwo[ bitPosition ];
   }
   
   /**
@@ -419,6 +389,6 @@ export class Chunk {
    * @private
    */
   _unsetBit (bufferOffset, bitPosition) {
-    this._buffer[ bufferOffset ] &= ~( 1 << bitPosition );
+    this._buffer[ bufferOffset ] &= ~powers.powersOfTwo[ bitPosition ];
   }
 }
