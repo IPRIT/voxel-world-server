@@ -1,11 +1,14 @@
+import * as THREE from 'three';
 import { ChunkHeightMap } from "./chunk-height-map";
-import { buildChunkIndex, rgbToInt } from "../../../../utils/game-utils";
+import { buildChunkIndex, hasBit, lowestMaxBit, powers } from "../../../../utils/game-utils";
 import {
   WORLD_MAP_CHUNK_HEIGHT,
   WORLD_MAP_CHUNK_HEIGHT_POWER,
   WORLD_MAP_CHUNK_SIZE,
   WORLD_MAP_CHUNK_SIZE_POWER
 } from "../../../vars";
+
+const COLUMN_CAPACITY = 2 ** Math.max(0, WORLD_MAP_CHUNK_HEIGHT_POWER - 5 );
 
 export class Chunk {
 
@@ -70,13 +73,10 @@ export class Chunk {
   _toZ = 0;
 
   /**
-   * Block value represents as unsigned integer value
-   * Structure: [R-color]  [G-color]  [B-color]  [0][00]   [below_back_left_right_above_front]
-   *            8bit       8bit       8bit       2bit(ff)  6bit(faces)
    * @type {Uint32Array}
    * @private
    */
-  _blocks = new Uint32Array( 0 );
+  _buffer = new Uint32Array( 0 );
 
   /**
    * @type {boolean}
@@ -85,27 +85,23 @@ export class Chunk {
   _inited = false;
 
   /**
-   * @type {ChunkHeightMap}
-   * @private
-   */
-  _heightMap = null;
-
-  /**
    * @type {boolean}
    */
   needsUpdate = false;
 
   /**
-   * @param {VoxModel} model
    * @param {number} x
    * @param {number} z
    */
-  constructor (model, { x, z }) {
-    if (!model) {
-      throw new TypeError( `Model is empty. Expected: VoxModel, got: ${model}` );
-    }
-    this._model = model;
+  constructor ({ x, z }) {
     this._setPosition( x, z );
+  }
+  
+  /**
+   * @param {VoxModel} model
+   */
+  createFrom (model) {
+    this._createBufferFrom( model )
   }
 
   /**
@@ -114,8 +110,6 @@ export class Chunk {
    */
   init () {
     this._createBlocksBuffer();
-    this._createHeightMap();
-    this._buildModel();
     this._inited = true;
     this._model = null;
 
@@ -124,96 +118,116 @@ export class Chunk {
 
   /**
    * Computes buffer offset
+   *
    * @param {number} x
-   * @param {number} y
    * @param {number} z
    * @returns {number}
    */
-  blockIndex (x, y, z) {
-    return ((x << WORLD_MAP_CHUNK_HEIGHT_POWER) << WORLD_MAP_CHUNK_SIZE_POWER)
-      + (y << WORLD_MAP_CHUNK_SIZE_POWER)
-      + z;
+  getBufferOffset (x, z) {
+    return ( x << WORLD_MAP_CHUNK_SIZE_POWER ) + z;
   }
-
-  /**
-   * @param {number} index
-   * @returns {{x: number, y: number, z: number}}
-   */
-  blockPosition (index) {
-    const yz = this.size.y * this.size.z;
-    const t1 = index % yz;
-    const z = t1 % this.size.z;
-    const y = (t1 - z) / this.size.z;
-    const x = (index - t1) / yz;
-    return { x, y, z };
-  }
-
+  
   /**
    * @param {number} x
    * @param {number} y
    * @param {number} z
-   * @param color
-   */
-  addBlock ({ x, y, z }, color) {
-    if (typeof color !== 'number') {
-      color = Array.isArray(color)
-        ? rgbToInt(color)
-        : 0;
-    }
-
-    if (!this.inside(x, y, z)) {
-      return;
-    }
-
-    const blockIndex = this.blockIndex( x, y, z );
-    this._blocks[ blockIndex ] = color;
-    this._heightMap.addBlock( x, y, z );
-    this.needsUpdate = true;
-  }
-
-  /**
-   * @param {number} x
-   * @param {number} y
-   * @param {number} z
-   * @returns {number}
-   */
-  getBlock ({ x, y, z }) {
-    if (!this.inside(x, y, z)) {
-      return 0;
-    }
-    return this._blocks[ this.blockIndex(x, y, z) ];
-  }
-
-  /**
-   * @param {{x: number, y: number, z: number}} position
    * @returns {boolean}
    */
-  hasBlock (position) {
-    return !!this.getBlock(position);
+  hasBlock (x, y, z) {
+    return !!this._hasBit( (x << WORLD_MAP_CHUNK_SIZE_POWER) + z, y );
   }
-
+  
   /**
    * @param {number} x
    * @param {number} y
    * @param {number} z
+   * @returns {boolean}
    */
-  removeBlock ({ x, y, z }) {
-    if (!this.inside(x, y, z)) {
-      return;
-    }
-    const blockIndex = this.blockIndex( x, y, z );
-    this._blocks[ blockIndex ] = 0;
-    this._heightMap.removeBlock( x, y, z );
-    this.needsUpdate = true;
+  addBlock (x, y, z) {
+    this._setBit( (x << WORLD_MAP_CHUNK_SIZE_POWER) + z, y );
   }
-
+  
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {number} z
+   * @returns {boolean}
+   */
+  removeBlock (x, y, z) {
+    this._unsetBit( (x << WORLD_MAP_CHUNK_SIZE_POWER) + z, y );
+  }
+  
   /**
    * @param {number} x
    * @param {number} z
    * @returns {number}
    */
-  getMinMaxBlockY ({ x, z }) {
-    return this._heightMap.getMinMaxBlock( x, z );
+  getColumn (x, z) {
+    return this._buffer[ (x << WORLD_MAP_CHUNK_SIZE_POWER) + z ];
+  }
+  
+  /**
+   * This method is faster than getMinMaxBlock2 relying on the performance test
+   *
+   * @param {number} x
+   * @param {number} z
+   * @returns {number}
+   */
+  getMinMaxBlock (x, z) {
+    let column = this.getColumn( x, z );
+    let minMaxY = 0, minY = -1;
+    for (let y = 0; y < WORLD_MAP_CHUNK_HEIGHT; ++y) {
+      if (hasBit( column, y )) {
+        minMaxY = y;
+        if (minY === -1) {
+          minY = y;
+        }
+      } else if (minY >= 0) {
+        break;
+      }
+    }
+    return minMaxY;
+  }
+  
+  /**
+   * @param {number} x
+   * @param {number} z
+   * @returns {number}
+   */
+  getMinMaxBlock2 (x, z) {
+    let column = this.getColumn( x, z );
+    if (!column) {
+      return 0;
+    }
+    let minMax = lowestMaxBit( column );
+    if (minMax < 0) {
+      return 30; // lowestMaxBit returns negative value when log2 is 30 (single case)
+    }
+    // lowestMaxBit returns zero when power of 2 is 31 (single case)
+    return minMax === 0 ? 31 : powers.powersOfTwoInv[ minMax ]; // minMax always power of 2
+  }
+  
+  /**
+   * @param {number} x
+   * @param {number} z
+   * @param {number} fromY
+   * @param {number} toY
+   * @returns {number}
+   */
+  getMinMaxBlockBetween (x, z, fromY, toY) {
+    let column = this.getColumn( x, z );
+    let minMaxY = fromY, minY = -1;
+    for (let y = fromY; y < toY; ++y) {
+      if (hasBit( column, y )) {
+        minMaxY = y;
+        if (minY === -1) {
+          minY = y;
+        }
+      } else if (minY >= 0) {
+        break;
+      }
+    }
+    return minMaxY;
   }
 
   /**
@@ -287,8 +301,8 @@ export class Chunk {
   /**
    * @returns {Uint32Array}
    */
-  get blocks () {
-    return this._blocks;
+  get buffer () {
+    return this._buffer;
   }
 
   /**
@@ -321,18 +335,11 @@ export class Chunk {
    * @override
    */
   get bufferSize () {
-    return (WORLD_MAP_CHUNK_SIZE ** 2) * WORLD_MAP_CHUNK_HEIGHT;
+    return ( WORLD_MAP_CHUNK_SIZE ** 2 ) * COLUMN_CAPACITY;
   }
 
   /**
-   * @return {ChunkHeightMap}
-   */
-  get heightMap () {
-    return this._heightMap;
-  }
-
-  /**
-   * @returns {THREE.Vector3}
+   * @returns {THREE.Vector3|Vector3}
    */
   get fromPosition () {
     return new THREE.Vector3(
@@ -343,7 +350,7 @@ export class Chunk {
   }
 
   /**
-   * @returns {THREE.Vector3}
+   * @returns {THREE.Vector3|Vector3}
    */
   get toPosition () {
     return new THREE.Vector3(
@@ -354,33 +361,21 @@ export class Chunk {
   }
 
   /**
-   * @returns {Uint32Array}
+   * @param {VoxModel} model
    * @private
    */
-  _createBlocksBuffer () {
-    return (this._blocks = new Uint32Array( this.bufferSize ));
-  }
-
-  /**
-   * @returns {ChunkHeightMap}
-   * @private
-   */
-  _createHeightMap () {
-    return ( this._heightMap = new ChunkHeightMap( this.size ) );
-  }
-
-  /**
-   * @private
-   */
-  _buildModel () {
+  _createBufferFrom (model) {
     if (this._inited) {
       return;
     }
-    const model = this._model;
+    
+    this._buffer = new Uint32Array( this.bufferSize );
+    
     const blocks = model.getBlocks();
 
     for (let i = 0; i < blocks.length; ++i) {
-      this.addBlock( blocks[i], blocks[i].color );
+      const { x, y, z } = blocks[ i ];
+      this.addBlock( x, y, z );
     }
   }
 
@@ -397,5 +392,33 @@ export class Chunk {
     this._toX = this._fromX + WORLD_MAP_CHUNK_SIZE;
     this._toY = this._fromY + WORLD_MAP_CHUNK_HEIGHT;
     this._toZ = this._fromZ + WORLD_MAP_CHUNK_SIZE;
+  }
+  
+  /**
+   * @param {number} bufferOffset
+   * @param {number} bitPosition
+   * @returns {number} 0 or 1
+   * @private
+   */
+  _hasBit (bufferOffset, bitPosition) {
+    return this._buffer[ bufferOffset ] & (1 << bitPosition);
+  }
+  
+  /**
+   * @param {number} bufferOffset
+   * @param {number} bitPosition
+   * @private
+   */
+  _setBit (bufferOffset, bitPosition) {
+    this._buffer[ bufferOffset ] |= 1 << bitPosition;
+  }
+  
+  /**
+   * @param {number} bufferOffset
+   * @param {number} bitPosition
+   * @private
+   */
+  _unsetBit (bufferOffset, bitPosition) {
+    this._buffer[ bufferOffset ] &= ~( 1 << bitPosition );
   }
 }

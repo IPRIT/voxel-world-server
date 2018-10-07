@@ -27,7 +27,7 @@ export class VoxModel {
   getBlocks () {
     const result = [];
     for (let index = 0; index < this.xyzi.length; ++index) {
-      result.push( this.getBlock(index) );
+      result.push( this.getBlock( index ) );
     }
     return result;
   }

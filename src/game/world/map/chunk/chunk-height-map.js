@@ -16,7 +16,7 @@ export class ChunkHeightMap {
   _objectSize = null;
 
   /**
-   * Each element of array represents a sequence of bits - column of blocks [0, 31].
+   * Each element of array represents a sequence of bits - column of buffer [0, 31].
    * 1 - is impassable block, 0 - passable
    * @type {Uint32Array}
    * @private
