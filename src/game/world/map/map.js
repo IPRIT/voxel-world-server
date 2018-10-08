@@ -2,14 +2,16 @@ import EventEmitter from 'events';
 import Promise from 'bluebird';
 import * as THREE from 'three';
 import { ChunkLoader } from "./chunk";
-import { buildChunkIndex, floorVector, parseChunkIndex } from "../../../utils/game-utils";
+import { buildChunkIndex, floorVector, hasBit, parseChunkIndex, powers } from "../../../utils/game-utils";
 import {
-  WORLD_MAP_CHUNK_HEIGHT,
+  WORLD_MAP_CHUNK_HEIGHT, WORLD_MAP_CHUNK_HEIGHT_POWER,
   WORLD_MAP_CHUNK_SIZE,
   WORLD_MAP_CHUNK_SIZE_VECTOR,
   WORLD_MAP_CHUNK_VIEW_DISTANCE,
-  WORLD_MAP_SIZE
+  WORLD_MAP_SIZE, WORLD_MAP_SIZE_POWER
 } from "../../vars";
+
+const COLUMN_CAPACITY = 2 ** Math.max(0, WORLD_MAP_CHUNK_HEIGHT_POWER - 5 );
 
 export class WorldMap extends EventEmitter {
 
@@ -24,6 +26,12 @@ export class WorldMap extends EventEmitter {
    * @private
    */
   _chunkSize = new THREE.Vector3( ...WORLD_MAP_CHUNK_SIZE_VECTOR );
+
+  /**
+   * @type {Uint32Array}
+   * @private
+   */
+  _buffer = new Uint32Array( 0 );
 
   /**
    * @type {WorldMap}
@@ -44,14 +52,15 @@ export class WorldMap extends EventEmitter {
   /**
    * @returns {Promise<*>}
    */
-  load () {
+  async load () {
+    if (this._isLoaded) {
+      return;
+    }
+    this._buffer = new Uint32Array( this.bufferSize );
+
     return Promise.try(_ => {
       const chunksToLoad = this.getVisibleChunks( this.center, 1e9 );
       return this._loadChunks( chunksToLoad );
-    }).tap(chunks => {
-      console.log( `[WorldMap] ${chunks.length} chunks loaded into memory.` );
-      this._chunks = chunks;
-      return chunks;
     });
   }
 
@@ -141,6 +150,116 @@ export class WorldMap extends EventEmitter {
     };
   }
 
+
+  /**
+   * Computes buffer offset
+   *
+   * @param {number} x
+   * @param {number} y
+   * @param {number} z
+   * @returns {number}
+   */
+  getBufferOffset (x, y, z) {
+    return ( x << WORLD_MAP_SIZE_POWER )
+      + ( y >> 5 )
+      + z;
+  }
+
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {number} z
+   * @returns {boolean}
+   */
+  hasBlock (x, y, z) {
+    return !!this._hasBit(
+      this.getBufferOffset( x, y, z ),
+      y & 0x1f
+    );
+  }
+
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {number} z
+   * @returns {boolean}
+   */
+  addBlock (x, y, z) {
+    this._setBit(
+      this.getBufferOffset( x, y, z ),
+      y & 0x1f
+    );
+  }
+
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {number} z
+   * @returns {boolean}
+   */
+  deleteBlock (x, y, z) {
+    this._unsetBit(
+      this.getBufferOffset( x, y, z ),
+      y & 0x1f
+    );
+  }
+
+  /**
+   * @param {number} x
+   * @param {number} z
+   * @returns {Uint32Array}
+   */
+  getColumn (x, z) {
+    const bufferOffset = this.getBufferOffset( x, 0, z );
+    return this._buffer.slice( bufferOffset, bufferOffset + COLUMN_CAPACITY );
+  }
+
+  /**
+   * @param {number} x
+   * @param {number} z
+   * @returns {number}
+   */
+  getMinMaxY (x, z) {
+    return this.getMinMaxYBetween( x, z, 0, WORLD_MAP_CHUNK_HEIGHT - 1 )
+  }
+
+  /**
+   * Works correctly
+   *
+   * @param {number} x
+   * @param {number} z
+   * @param {number} fromY
+   * @param {number} toY
+   * @returns {number}
+   */
+  getMinMaxYBetween (x, z, fromY, toY) {
+    let column = this.getColumn( x, z );
+    let minMaxY = 0, minY = -1;
+
+    fromY = Math.max( fromY, 0 );
+    toY = Math.min( toY, WORLD_MAP_CHUNK_HEIGHT - 1 );
+
+    const minColumn = Math.max( fromY >> 5, 0 );
+    const maxColumn = Math.min( toY >> 5, column.length - 1 );
+
+    l1: for (let columnOffset = minColumn; columnOffset <= maxColumn; ++columnOffset) {
+      const value = column[ columnOffset ];
+
+      for (let y = fromY & 0x1f; y <= ( toY & 0x1f ); ++y) {
+        if (hasBit( value, y )) {
+          minMaxY = columnOffset * 0x20 + y;
+          if (minY === -1) {
+            minY = columnOffset * 0x20 + y;
+          }
+        } else if (minY >= 0) {
+          break l1;
+        }
+      }
+    }
+
+    return minMaxY;
+  }
+
   /**
    * @returns {boolean}
    */
@@ -160,15 +279,80 @@ export class WorldMap extends EventEmitter {
   }
 
   /**
+   * @returns {number}
+   * @override
+   */
+  get bufferSize () {
+    return ( WORLD_MAP_SIZE ** 2 ) * COLUMN_CAPACITY;
+  }
+
+  /**
    * @param {Array<string>} chunksToLoad
-   * @returns {Promise<Array<Chunk>>}
+   * @returns {Promise<void>}
    * @private
    */
   _loadChunks (chunksToLoad) {
+    const startedAt = Date.now();
+
     const loader = new ChunkLoader();
     return Promise.resolve( chunksToLoad ).map(chunkIndex => {
       const [ x, z ] = parseChunkIndex( chunkIndex );
-      return loader.load( x, z );
-    }, { concurrency: 30 });
+      return loader.load( x, z ).then(model => {
+        this._fillFromModel(
+          model,
+          x * WORLD_MAP_CHUNK_SIZE,
+          z * WORLD_MAP_CHUNK_SIZE
+        );
+        // free memory
+        model.dispose();
+      })
+    }, { concurrency: 30 }).tap(({ length }) => {
+      const timeElapsed = Date.now() - startedAt;
+      console.log( `[WorldMap] ${length} chunks has been loaded into memory in ${timeElapsed} ms.` );
+      console.log( `[WorldMap] Buffer size: ${this._buffer.length}.` );
+    });
+  }
+
+  /**
+   * @param {VoxModel} model
+   * @param {number} offsetX
+   * @param {number} offsetZ
+   * @private
+   */
+  _fillFromModel (model, offsetX, offsetZ) {
+    const blocks = model.getBlocks();
+
+    for (let i = 0; i < blocks.length; ++i) {
+      const { x, y, z } = blocks[ i ];
+      this.addBlock( offsetX + x, y, offsetZ + z );
+    }
+  }
+
+  /**
+   * @param {number} bufferOffset
+   * @param {number} bitPosition
+   * @returns {number} 0 or 1
+   * @private
+   */
+  _hasBit (bufferOffset, bitPosition) {
+    return this._buffer[ bufferOffset ] & powers.powersOfTwo[ bitPosition ];
+  }
+
+  /**
+   * @param {number} bufferOffset
+   * @param {number} bitPosition
+   * @private
+   */
+  _setBit (bufferOffset, bitPosition) {
+    this._buffer[ bufferOffset ] |= powers.powersOfTwo[ bitPosition ];
+  }
+
+  /**
+   * @param {number} bufferOffset
+   * @param {number} bitPosition
+   * @private
+   */
+  _unsetBit (bufferOffset, bitPosition) {
+    this._buffer[ bufferOffset ] &= ~powers.powersOfTwo[ bitPosition ];
   }
 }
