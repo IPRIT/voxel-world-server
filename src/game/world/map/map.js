@@ -10,6 +10,7 @@ import {
   WORLD_MAP_CHUNK_VIEW_DISTANCE,
   WORLD_MAP_SIZE, WORLD_MAP_SIZE_POWER
 } from "../../vars";
+import { MapCollisions } from "./collisions/map-collisions";
 
 const COLUMN_CAPACITY = 2 ** Math.max(0, WORLD_MAP_CHUNK_HEIGHT_POWER - 5 );
 
@@ -32,6 +33,12 @@ export class WorldMap extends EventEmitter {
    * @private
    */
   _buffer = new Uint32Array( 0 );
+
+  /**
+   * @type {MapCollisions}
+   * @private
+   */
+  _collisions = new MapCollisions();
 
   /**
    * @type {WorldMap}
@@ -150,7 +157,6 @@ export class WorldMap extends EventEmitter {
     };
   }
 
-
   /**
    * Computes buffer offset
    *
@@ -172,6 +178,10 @@ export class WorldMap extends EventEmitter {
    * @returns {boolean}
    */
   hasBlock (x, y, z) {
+    if (!this.isInside( x, y, z )) {
+      return false;
+    }
+
     return !!this._hasBit(
       this.getBufferOffset( x, y, z ),
       y & 0x1f
@@ -182,9 +192,12 @@ export class WorldMap extends EventEmitter {
    * @param {number} x
    * @param {number} y
    * @param {number} z
-   * @returns {boolean}
    */
   addBlock (x, y, z) {
+    if (!this.isInside( x, y, z )) {
+      return;
+    }
+
     this._setBit(
       this.getBufferOffset( x, y, z ),
       y & 0x1f
@@ -195,9 +208,12 @@ export class WorldMap extends EventEmitter {
    * @param {number} x
    * @param {number} y
    * @param {number} z
-   * @returns {boolean}
    */
   deleteBlock (x, y, z) {
+    if (!this.isInside( x, y, z )) {
+      return;
+    }
+
     this._unsetBit(
       this.getBufferOffset( x, y, z ),
       y & 0x1f
@@ -210,6 +226,10 @@ export class WorldMap extends EventEmitter {
    * @returns {Uint32Array}
    */
   getColumn (x, z) {
+    if (!this.isInside( x, 0, z )) {
+      return new Uint32Array( 0 );
+    }
+
     const bufferOffset = this.getBufferOffset( x, 0, z );
     return this._buffer.slice( bufferOffset, bufferOffset + COLUMN_CAPACITY );
   }
@@ -220,7 +240,7 @@ export class WorldMap extends EventEmitter {
    * @returns {number}
    */
   getMinMaxY (x, z) {
-    return this.getMinMaxYBetween( x, z, 0, WORLD_MAP_CHUNK_HEIGHT - 1 )
+    return this.getMinMaxYBetween( x, z, 0, WORLD_MAP_CHUNK_HEIGHT - 1 );
   }
 
   /**
@@ -233,6 +253,10 @@ export class WorldMap extends EventEmitter {
    * @returns {number}
    */
   getMinMaxYBetween (x, z, fromY, toY) {
+    if (!this.isInside( x, 0, z )) {
+      return 0;
+    }
+
     let column = this.getColumn( x, z );
     let minMaxY = 0, minY = -1;
 
@@ -258,6 +282,18 @@ export class WorldMap extends EventEmitter {
     }
 
     return minMaxY;
+  }
+
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {number} z
+   * @returns {boolean}
+   */
+  isInside (x, y, z) {
+    return x >= 0 && x < WORLD_MAP_SIZE
+      && z >= 0 && z < WORLD_MAP_SIZE
+      && y >= 0 && y < WORLD_MAP_CHUNK_HEIGHT;
   }
 
   /**
@@ -287,6 +323,13 @@ export class WorldMap extends EventEmitter {
   }
 
   /**
+   * @returns {MapCollisions}
+   */
+  get collisions () {
+    return this._collisions;
+  }
+
+  /**
    * @param {Array<string>} chunksToLoad
    * @returns {Promise<void>}
    * @private
@@ -305,7 +348,7 @@ export class WorldMap extends EventEmitter {
         );
         // free memory
         model.dispose();
-      })
+      });
     }, { concurrency: 30 }).tap(({ length }) => {
       const timeElapsed = Date.now() - startedAt;
       console.log( `[WorldMap] ${length} chunks has been loaded into memory in ${timeElapsed} ms.` );

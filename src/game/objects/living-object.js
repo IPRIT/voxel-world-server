@@ -4,6 +4,7 @@ import { ObjectGravity } from "../physic";
 import { warp } from "../../utils/game-utils";
 import { LivingObjectType, LivingObjectTypeReverted } from "../dictionary";
 import { WORLD_MAP_BLOCK_SIZE, WORLD_MAP_SIZE } from "../vars";
+import { WorldMap } from "../world/map";
 
 export class LivingObject extends EventEmitter {
 
@@ -116,8 +117,6 @@ export class LivingObject extends EventEmitter {
     if (this._needsVerticalUpdate) {
       this._updateVerticalPosition( deltaTime );
     }
-
-    // console.log( this.name, this._position.toArray(), this._isMoving );
   }
 
   /**
@@ -267,6 +266,13 @@ export class LivingObject extends EventEmitter {
   }
 
   /**
+   * @param value
+   */
+  set position (value) {
+    this._position = value;
+  }
+
+  /**
    * @returns {Vector3}
    */
   get targetLocation () {
@@ -365,6 +371,13 @@ export class LivingObject extends EventEmitter {
   }
 
   /**
+   * @returns {WorldMap}
+   */
+  get map () {
+    return WorldMap.getMap();
+  }
+
+  /**
    * @param {number} deltaTime
    * @private
    */
@@ -375,42 +388,27 @@ export class LivingObject extends EventEmitter {
         warp( this._velocityScalar, deltaTime )
       );
 
-    // + remove
-    let oldPosition = this.position.clone();
-    this._position.add( shiftVector );
-    let distancePassed = oldPosition.distanceTo( this.position );
-    if (distancePassed < .01 && !this._targetLocationInfinite) {
-      this.stopMoving();
-    }
-
-    if (!this._needsVerticalUpdate) {
-      this._resumeVerticalUpdate();
-    }
-    // - remove
-
-
-
-    /*let { shiftPosition, changed } = this.map.collisions.clampNextPosition(
-      this.position, shiftVector, {
+    let { shiftPosition, changed } = this.map.collisions.clampNextPosition(
+      this._position, shiftVector, {
         objectBlocksRadius: this._objectBlocksRadius,
         objectBlocksHeight: this._objectBlocksHeight
       }
-    );*/
+    );
 
-    /*if (changed) {
+    if (changed) {
       this._updateVelocityDirection();
-    }*/
+    }
 
-    /*let oldPosition = this.position.clone();
-    this.position.add( shiftPosition );
-    let distancePassed = oldPosition.distanceTo( this.position );
+    let oldPosition = this._position.clone();
+    this._position.add( shiftPosition );
+    let distancePassed = oldPosition.distanceTo( this._position );
     if (distancePassed < .01 && !this._targetLocationInfinite) {
       this.stopMoving();
     }
 
     if (!this._needsVerticalUpdate) {
       this._resumeVerticalUpdate();
-    }*/
+    }
   }
 
   /**
@@ -420,42 +418,23 @@ export class LivingObject extends EventEmitter {
     let shiftY = -this._gravity.update( deltaTime );
     let falling = shiftY < 0;
 
-    // + remove
-    let changed = this.position.y + shiftY < 0;
-
-    this.position.y = changed
-      ? 0 : this.position.y + shiftY;
-
-    if (changed) {
-      this._gravity.resetVelocity();
-
-      if (falling) {
-        !this._isMoving && this._stopVerticalUpdate();
-        this._isJumping && (this._isJumping = false);
-      }
-    }
-    // - remove
-
-    // let shiftY = -this._gravity.update( deltaTime );
-    // let falling = shiftY < 0;
-
-    /*let result = this.map.collisions.clampVerticalPosition(
-      this.position, shiftY, {
+    let result = this.map.collisions.clampVerticalPosition(
+      this._position, shiftY, {
         objectBlocksRadius: this._objectBlocksRadius,
         objectBlocksHeight: this._objectBlocksHeight
       }
     );
     shiftY = result.shiftY;
-    this.position.y += shiftY;
+    this._position.y += shiftY;
 
     if (result.changed) {
-      // this._gravity.resetVelocity();
+      this._gravity.resetVelocity();
 
       if (falling) {
-        !this._isComing && this._stopVerticalUpdate();
-        this._isJumping && (this._isJumping = false);
+        !this._isMoving && this._stopVerticalUpdate();
+        this._isJumping && ( this._isJumping = false );
       }
-    }*/
+    }
   }
 
   /**

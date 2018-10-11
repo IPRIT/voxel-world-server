@@ -1,6 +1,6 @@
 /* Chunks */
 export const WORLD_MAP_CHUNK_SIZE_POWER = 6;
-export const WORLD_MAP_CHUNK_HEIGHT_POWER = 6;
+export const WORLD_MAP_CHUNK_HEIGHT_POWER = 5;
 
 export const WORLD_MAP_CHUNK_SIZE = 1 << WORLD_MAP_CHUNK_SIZE_POWER;
 export const WORLD_MAP_CHUNK_HEIGHT = 1 << WORLD_MAP_CHUNK_HEIGHT_POWER;
@@ -16,6 +16,7 @@ export const WORLD_MAP_CHUNK_SIZE_VECTOR = [
 /* Map */
 export const WORLD_MAP_SIZE_POWER = 11;
 export const WORLD_MAP_SIZE = 1 << WORLD_MAP_SIZE_POWER;
-export const WORLD_MAP_BLOCK_SIZE = 2;
+export const WORLD_MAP_BLOCK_SIZE_POWER = 1;
+export const WORLD_MAP_BLOCK_SIZE = 1 << WORLD_MAP_BLOCK_SIZE_POWER;
 
 export const WORLD_GRAVITY = 1;
