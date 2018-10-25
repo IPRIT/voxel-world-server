@@ -2,17 +2,25 @@ import EventEmitter from 'events';
 import Promise from 'bluebird';
 import * as THREE from 'three';
 import { ChunkLoader } from "./chunk";
-import { buildChunkIndex, floorVector, hasBit, parseChunkIndex, powers } from "../../../utils/game-utils";
 import {
-  WORLD_MAP_CHUNK_HEIGHT, WORLD_MAP_CHUNK_HEIGHT_POWER,
+  buildChunkIndex,
+  floorVector,
+  hasBit,
+  parseChunkIndex,
+  powers,
+  transformToChunkCoords, transformWorldToChunkCoords
+} from "../../../utils/game-utils";
+import { MapCollisions } from "./collisions/map-collisions";
+import {
+  WORLD_MAP_CHUNK_COLUMN_CAPACITY,
+  WORLD_MAP_CHUNK_HEIGHT,
   WORLD_MAP_CHUNK_SIZE,
   WORLD_MAP_CHUNK_SIZE_VECTOR,
   WORLD_MAP_CHUNK_VIEW_DISTANCE,
   WORLD_MAP_SIZE, WORLD_MAP_SIZE_POWER
 } from "../../vars";
-import { MapCollisions } from "./collisions/map-collisions";
 
-const COLUMN_CAPACITY = 2 ** Math.max(0, WORLD_MAP_CHUNK_HEIGHT_POWER - 5 );
+const bufferPartLength = WORLD_MAP_SIZE ** 2;
 
 export class WorldMap extends EventEmitter {
 
@@ -167,7 +175,7 @@ export class WorldMap extends EventEmitter {
    */
   getBufferOffset (x, y, z) {
     return ( x << WORLD_MAP_SIZE_POWER )
-      + ( y >> 5 )
+      + ( y >> 5 ) * bufferPartLength
       + z;
   }
 
@@ -231,7 +239,7 @@ export class WorldMap extends EventEmitter {
     }
 
     const bufferOffset = this.getBufferOffset( x, 0, z );
-    return this._buffer.slice( bufferOffset, bufferOffset + COLUMN_CAPACITY );
+    return this._buffer.slice( bufferOffset, bufferOffset + WORLD_MAP_CHUNK_COLUMN_CAPACITY );
   }
 
   /**
@@ -297,6 +305,24 @@ export class WorldMap extends EventEmitter {
   }
 
   /**
+   * @param {number} x
+   * @param {number} z
+   * @returns {Array<number>}
+   */
+  transformToChunkCoords (x, z) {
+    return transformToChunkCoords( x, z );
+  }
+
+  /**
+   * @param {number} x
+   * @param {number} z
+   * @returns {Array<number>}
+   */
+  transformWorldToChunkCoords (x, z) {
+    return transformWorldToChunkCoords( x, z );
+  }
+
+  /**
    * @returns {boolean}
    */
   get isLoaded () {
@@ -319,7 +345,7 @@ export class WorldMap extends EventEmitter {
    * @override
    */
   get bufferSize () {
-    return ( WORLD_MAP_SIZE ** 2 ) * COLUMN_CAPACITY;
+    return bufferPartLength * WORLD_MAP_CHUNK_COLUMN_CAPACITY;
   }
 
   /**

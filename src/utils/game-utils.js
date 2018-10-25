@@ -1,5 +1,5 @@
 import { ensureNumber } from "./common-utils";
-import { WORLD_MAP_BLOCK_SIZE } from "../game/vars";
+import { WORLD_MAP_BLOCK_SIZE, WORLD_MAP_BLOCK_SIZE_POWER, WORLD_MAP_CHUNK_SIZE_POWER } from "../game/vars";
 
 export const FRAMES_PER_SECOND = 60;
 export const FRAMES_DELTA_SEC = 1 / 60;
@@ -200,6 +200,30 @@ export function parseChunkIndexToVector (value) {
  * @param {THREE.Vector3} position
  * @returns {THREE.Vector3}
  */
-export function toBlockPosition (position) {
+export function transformToBlockCoords (position) {
   return position.clone().divideScalar( WORLD_MAP_BLOCK_SIZE );
+}
+
+/**
+ * @param {number} x
+ * @param {number} z
+ * @returns {Array<number>}
+ */
+export function transformToChunkCoords (x, z) {
+  return [
+    x >> WORLD_MAP_CHUNK_SIZE_POWER,
+    z >> WORLD_MAP_CHUNK_SIZE_POWER
+  ];
+}
+
+/**
+ * @param {number} x
+ * @param {number} z
+ * @returns {Array<number>}
+ */
+export function transformWorldToChunkCoords (x, z) {
+  return transformToChunkCoords(
+    x >> WORLD_MAP_BLOCK_SIZE_POWER,
+    z >> WORLD_MAP_BLOCK_SIZE_POWER
+  );
 }
